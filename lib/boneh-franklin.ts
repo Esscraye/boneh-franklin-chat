@@ -24,6 +24,9 @@ export interface UserKeys {
 export class BonehFranklinSimulator {
   private readonly CURVE_A = 0n // For curve y² = x³+ 1
   private readonly CURVE_B = 1n
+  private _masterSecret?: bigint
+  private _p?: bigint
+  private _q?: bigint
 
   // H1: Hash function mapping identity to integer
   private H1(identity: string): bigint {
@@ -110,7 +113,7 @@ export class BonehFranklinSimulator {
   }
 
   // Simplified Weil pairing simulation
-  private weilPairing(P: Point, Q: Point, q: bigint, p: bigint): bigint {
+  private weilPairing(P: Point, Q: Point, q: bigint): bigint {
     // Simulation simplifiée du couplage de Weil e(P,Q)
     // Dans une vraie implémentation, ceci utiliserait l'algorithme de Miller
     // Pour la démo, nous créons une fonction qui respecte la bilinéarité
@@ -158,17 +161,21 @@ export class BonehFranklinSimulator {
     const publicKey = this.pointMultiply(s, g, p)
 
     // Stocker s pour les opérations futures (normalement secret)
-    ;(this as any)._masterSecret = s
-    ;(this as any)._p = p
-    ;(this as any)._q = q
+    this._masterSecret = s
+    this._p = p
+    this._q = q
 
     return { p, q, l, g, publicKey }
   }
 
   // Extract: Generate private key for identity (MapToPoint equivalent)
   keyGeneration(identity: string, params: SystemParameters): UserKeys {
-    const { p, q, l } = params
-    const s = (this as any)._masterSecret
+    const { p, l } = params
+    const s = this._masterSecret
+
+    if (!s) {
+      throw new Error("Master secret not initialized")
+    }
 
     // H1(ID) -> y0
     const y0 = this.H1(identity) % p
@@ -196,7 +203,8 @@ export class BonehFranklinSimulator {
   }
 
   // Encrypt message for given identity - Version directe et fiable
-  encrypt(message: string, recipientIdentity: string, params: SystemParameters): string {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  encrypt(message: string, recipientIdentity: string, _params: SystemParameters): string {
     // Générer une clé de session déterministe basée sur l'identité
     const sessionKey = this.H1(recipientIdentity + Date.now().toString())
     
@@ -223,7 +231,8 @@ export class BonehFranklinSimulator {
   }
 
   // Decrypt message with private key - Version directe
-  decrypt(encryptedMessage: string, privateKey: Point, params: SystemParameters): string {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  decrypt(encryptedMessage: string, _privateKey: Point, _params: SystemParameters): string {
     try {
       const data = JSON.parse(encryptedMessage)
       const { V, sessionKey } = data

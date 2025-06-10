@@ -9,15 +9,15 @@ import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Lock, Unlock, Key, Users, Send, Shield } from "lucide-react"
-import { BonehFranklinSimulator } from "@/lib/boneh-franklin"
+import { BonehFranklinSimulator, Point, SystemParameters } from "@/lib/boneh-franklin"
 
 interface User {
   id: string
   identity: string
   name: string
   publicKey?: string
-  privateKey?: any
-  identityPoint?: any
+  privateKey?: Point
+  identityPoint?: Point
 }
 
 interface Message {
@@ -31,18 +31,20 @@ interface Message {
 }
 
 export default function BonehFranklinChat() {
-  const [users, setUsers] = useState<User[]>([
+  const [initialUsers] = useState<User[]>([
     { id: "1", identity: "alice@example.com", name: "Alice" },
     { id: "2", identity: "bob@example.com", name: "Bob" },
     { id: "3", identity: "charlie@example.com", name: "Charlie" },
   ])
+
+  const [users, setUsers] = useState<User[]>(initialUsers)
 
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [selectedRecipient, setSelectedRecipient] = useState<User | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState("")
   const [simulator] = useState(new BonehFranklinSimulator())
-  const [systemParams, setSystemParams] = useState<any>(null)
+  const [systemParams, setSystemParams] = useState<SystemParameters | null>(null)
 
   useEffect(() => {
     // Initialize system parameters
@@ -50,7 +52,7 @@ export default function BonehFranklinChat() {
     setSystemParams(params)
 
     // Generate keys for all users
-    const updatedUsers = users.map((user) => {
+    const updatedUsers = initialUsers.map((user) => {
       const keys = simulator.keyGeneration(user.identity, params)
       return {
         ...user,
@@ -65,7 +67,7 @@ export default function BonehFranklinChat() {
     // Test the encryption/decryption
     console.log("Testing Boneh-Franklin implementation...")
     simulator.testMultipleMessages(params)
-  }, [])
+  }, [simulator, initialUsers])
 
   const sendMessage = () => {
     if (!newMessage.trim() || !currentUser || !selectedRecipient || !systemParams) return
@@ -90,7 +92,7 @@ export default function BonehFranklinChat() {
   }
 
   const decryptMessage = (message: Message) => {
-    if (!currentUser || message.to !== currentUser.identity) return null
+    if (!currentUser || message.to !== currentUser.identity || !systemParams) return null
 
     try {
       const decryptedContent = simulator.decrypt(message.encryptedContent, currentUser.privateKey!, systemParams)
@@ -121,7 +123,7 @@ export default function BonehFranklinChat() {
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Chat Boneh-Franklin IBE</h1>
           <p className="text-gray-600">
-            Chiffrement basé sur l'identité - Les messages sont chiffrés avec l'identité du destinataire
+            Chiffrement basé sur l&apos;identité - Les messages sont chiffrés avec l&apos;identité du destinataire
           </p>
         </div>
 
@@ -191,7 +193,7 @@ export default function BonehFranklinChat() {
           </Card>
 
           {/* Chat Interface */}
-          <Card className="lg:col-span-2">
+          <Card className="lg:col-span-2" data-testid="chat-interface">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span>Messages</span>
@@ -301,6 +303,7 @@ export default function BonehFranklinChat() {
                     onChange={(e) => setNewMessage(e.target.value)}
                     className="flex-1"
                     rows={2}
+                    data-testid="message-input"
                   />
                   <Button
                     onClick={sendMessage}
@@ -340,11 +343,11 @@ export default function BonehFranklinChat() {
                   </div>
 
                   <div>
-                    <span className="font-medium">Point d'Identité (Q_ID):</span>
+                    <span className="font-medium">Point d&apos;Identité (Q_ID):</span>
                     <p className="text-gray-600 font-mono text-xs break-all">
                       {currentUser.identityPoint && !currentUser.identityPoint.isInfinity
                         ? `(${currentUser.identityPoint.x.toString().substring(0, 10)}..., ${currentUser.identityPoint.y.toString().substring(0, 10)}...)`
-                        : "Point à l'infini"}
+                        : "Point à l&apos;infini"}
                     </p>
                   </div>
 
